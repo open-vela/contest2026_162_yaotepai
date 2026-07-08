@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "team_id": "contest2026-162-yaotepai",
+  "github_login": "sprhawk",
+  "generator": "claude-code-collector@1.2.0",
+  "updated_at": "2026-07-08T02:36:04.590Z",
+  "sessions": [
+    {
+      "session_id": "291a2b23-18f8-41dc-bf57-443ed4b97131",
+      "tool": "claude-code",
+      "started_at": "2026-07-08T02:31:39.460Z",
+      "last_event_at": "2026-07-08T02:36:04.590Z",
+      "event_count": 57,
+      "raw_event_count": 80,
+      "file_path": "logs/sprhawk/2026-07-08/claude-code__291a2b23-18f8-41dc-bf57-443ed4b97131.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "model": "mimo-v2.5-pro"
+    }
+  ]
+}
