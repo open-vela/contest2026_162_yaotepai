@@ -7,7 +7,7 @@
 #ifndef __BOARD_H__
 #define __BOARD_H__
 
-#include "sfconfig.h"
+#include "rtconfig.h"
 #include "bf0_hal.h"
 #include "bsp_board.h"
 #ifdef BSP_USING_RTTHREAD

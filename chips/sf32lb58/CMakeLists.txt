@@ -56,6 +56,10 @@ if(CONFIG_PWM)
     list(APPEND SRCS sf32lb_pwm.c)
 endif()
 
+if(CONFIG_SF32LB52_USBDEV)
+    list(APPEND SRCS sf32lb_usbdev.c)
+endif()
+
 # IPC queue sources (shared driver, sf32lb58x porting layer)
 set(IPC_QUEUE_SRCS
     ${NUTTX_CHIP_ABS_DIR}/ipc_queue/common/circular_buf.c
