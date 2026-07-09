@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "team_id": "contest2026-162-yaotepai",
+  "github_login": "iotpi",
+  "generator": "claude-code-collector@1.2.0",
+  "updated_at": "2026-07-09T14:11:36.170Z",
+  "sessions": [
+    {
+      "session_id": "291a2b23-18f8-41dc-bf57-443ed4b97131",
+      "tool": "claude-code",
+      "started_at": "2026-07-09T14:11:36.074Z",
+      "last_event_at": "2026-07-09T14:11:36.074Z",
+      "event_count": 57,
+      "raw_event_count": 80,
+      "file_path": "logs/iotpi/2026-07-09/claude-code__291a2b23-18f8-41dc-bf57-443ed4b97131.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "model": "mimo-v2.5-pro"
+    },
+    {
+      "session_id": "b9e8640e-5756-4154-b47c-dade3f0610b7",
+      "tool": "claude-code",
+      "started_at": "2026-07-09T14:11:36.170Z",
+      "last_event_at": "2026-07-09T14:11:36.170Z",
+      "event_count": 1185,
+      "raw_event_count": 1564,
+      "file_path": "logs/iotpi/2026-07-09/claude-code__b9e8640e-5756-4154-b47c-dade3f0610b7.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "model": "mimo-v2.5-pro"
+    }
+  ]
+}
