@@ -1,3 +1,12 @@
-# Minimal placeholder defconfig for contest2026_000_board.
-# Not intended to boot real hardware; sample only.
-CONFIG_ARCH_BOARD_CONTEST2026_000_BOARD=y
+# Minimal defconfig for contest2026_162_board with SF32LB58 chip.
+
+# Board
+CONFIG_ARCH_BOARD_CUSTOM=y
+CONFIG_ARCH_BOARD_CUSTOM_DIR="../vendor/openvela/boards/contest2026_162_board"
+CONFIG_ARCH_BOARD_CUSTOM_DIR_RELPATH=y
+
+# Chip
+CONFIG_ARCH_CHIP_CUSTOM=y
+CONFIG_ARCH_CHIP_CUSTOM_DIR="../vendor/openvela/chips/contest2026_162_sf32lb58"
+CONFIG_ARCH_CHIP_CUSTOM_DIR_RELPATH=y
+CONFIG_ARCH_CHIP_CUSTOM_NAME="sf32lb58"

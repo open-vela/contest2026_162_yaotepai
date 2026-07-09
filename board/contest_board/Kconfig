@@ -1,5 +1,8 @@
 #
-# Contest 2026 team 000 board placeholder
+# Contest 2026 team 162 board
+#
+# Copyright (C) 2026 Yang Hongbo <yang.hongbo@iotpi.xyz>
+# SPDX-License-Identifier: Apache-2.0
 #
 
 if ARCH_BOARD_CONTEST2026_000_BOARD
