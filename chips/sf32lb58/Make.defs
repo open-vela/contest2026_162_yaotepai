@@ -1,0 +1,56 @@
+############################################################################
+# chips/sf32lb58/Make.defs
+#
+# Copyright (C) 2026 Yang Hongbo <yang.hongbo@iotpi.xyz>
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.  The
+# ASF licenses this file to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance with the
+# License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+############################################################################
+
+# SF32LB58 is Cortex-M33 (ARMv8-M)
+include armv8-m/Make.defs
+
+# Chip-local C sources
+CHIP_CSRCS += sifli_start.c sifli_irq.c sifli_uart.c sifli_lowput.c
+CHIP_CSRCS += sifli_oneshot.c sf32lb58_allocateheap.c sifli_gpio.c
+CHIP_CSRCS += sifli_i2c.c sifli_spi.c
+
+ifeq ($(CONFIG_ADC),y)
+CHIP_CSRCS += sf32lb_adc.c
+endif
+
+ifeq ($(CONFIG_RTC),y)
+CHIP_CSRCS += sf32lb_rtc.c
+endif
+
+ifeq ($(CONFIG_WATCHDOG),y)
+CHIP_CSRCS += sf32lb_iwdg.c
+endif
+
+ifeq ($(CONFIG_MTD),y)
+CHIP_CSRCS += sf32lb_flash.c
+endif
+
+ifeq ($(CONFIG_TIMER),y)
+CHIP_CSRCS += sf32lb_timer.c
+endif
+
+ifeq ($(CONFIG_PWM),y)
+CHIP_CSRCS += sf32lb_pwm.c
+endif
+
+include ./ipc_queue/Make.defs
