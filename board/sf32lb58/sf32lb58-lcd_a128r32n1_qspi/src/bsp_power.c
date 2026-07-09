@@ -1,5 +1,8 @@
 #include "bsp_board.h"
 
+#define SD1_RESET_PIN       (49)
+#define SD1_EN_PIN          (80)
+
 void BSP_GPIO_Set(int pin, int val, int is_porta)
 {
     GPIO_TypeDef *gpio = (is_porta) ? hwp_gpio1 : hwp_gpio2;
@@ -15,50 +18,56 @@ void BSP_GPIO_Set(int pin, int val, int is_porta)
     HAL_GPIO_WritePin(gpio, pin, (GPIO_PinState)val);
 }
 
-#define MPI2_POWER_PIN  (11)
-
-__WEAK void BSP_PowerDownCustom(int coreid, bool is_deep_sleep)
-{
-    BSP_GPIO_Set(MPI2_POWER_PIN, 0, 1);
-}
-
-__WEAK void BSP_PowerUpCustom(bool is_deep_sleep)
-{
-    BSP_GPIO_Set(MPI2_POWER_PIN, 1, 1);
-}
-
 
 void BSP_Power_Up(bool is_deep_sleep)
 {
-    BSP_PowerUpCustom(is_deep_sleep);
-#ifdef BSP_USING_BOARD_SF32LB52_LCD_52J_SD
+#ifdef SOC_BF0_HCPU
+
     if (is_deep_sleep)
     {
-        HAL_PIN_Set(PAD_PA21, GPIO_A21, PIN_NOPULL, 1);
+        // Replace with API that is OS-independent.
+        //rt_psram_exit_low_power("psram0");
     }
-#endif /* BSP_USING_BOARD_SF32LB52_LCD_52J_SD */
+#elif defined(SOC_BF0_LCPU)
+    {
+        ;
+    }
+#endif
+
 }
-
-
 
 void BSP_IO_Power_Down(int coreid, bool is_deep_sleep)
 {
-    BSP_PowerDownCustom(coreid, is_deep_sleep);
+    int i;
+#ifdef SOC_BF0_HCPU
+    if (coreid == CORE_ID_HCPU)
+    {
+        // Replace with API that is OS-independent.
+        // if (is_deep_sleep)
+        //rt_psram_enter_low_power("psram0");
+    }
+#else
+    {
+        ;
+    }
+#endif
 }
 
-void BSP_SDIO_Power_Up(void)
+void BSP_SD_PowerUp(void)
 {
-#ifdef RT_USING_SDIO
-    // TODO: Add SDIO power up
+#ifdef PMIC_CTRL_ENABLE
+    BSP_PMIC_Control(PMIC_OUT_1V8_LVSW100_5, 1, 1); //LCD_1V8 power
+    BSP_PMIC_Control(PMIC_OUT_LDO33_VOUT, 1, 1);    //LCD_3V3 power
+#endif /* PMIC_CTRL_ENABLE */
 
-#endif
-
+    BSP_GPIO_Set(SD1_EN_PIN, 1, 1);
+    BSP_GPIO_Set(SD1_RESET_PIN, 1, 1);
 }
-void BSP_SDIO_Power_Down(void)
+
+void BSP_SD_PowerDown(void)
 {
-#ifdef RT_USING_SDIO
-    // TODO: Add SDIO power down
-#endif
+    BSP_GPIO_Set(SD1_EN_PIN, 0, 1);
+    BSP_GPIO_Set(SD1_RESET_PIN, 0, 1);
 }
 
 
