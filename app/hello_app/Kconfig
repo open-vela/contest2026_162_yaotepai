@@ -1,4 +1,7 @@
 #
+# Copyright (C) 2026 Yang Hongbo <yang.hongbo@iotpi.xyz>
+# SPDX-License-Identifier: Apache-2.0
+#
 # For a description of the syntax of this configuration file,
 # see the file kconfig-language.txt in the NuttX tools repository.
 #

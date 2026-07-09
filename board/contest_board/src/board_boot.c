@@ -1,5 +1,8 @@
 /****************************************************************************
- * Contest 2026 team 000 board - boot stub (no-op placeholder)
+ * Contest 2026 team 162 board - boot stub (no-op placeholder)
+ *
+ * Copyright (C) 2026 Yang Hongbo <yang.hongbo@iotpi.xyz>
+ * SPDX-License-Identifier: Apache-2.0
  ****************************************************************************/
 
 #include <nuttx/board.h>
