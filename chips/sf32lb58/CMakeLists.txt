@@ -25,7 +25,7 @@
 # NUTTX_DIR = <workspace>/nuttx, so NUTTX_DIR/.. = workspace root.
 # We must NOT use relative paths from NUTTX_CHIP_ABS_DIR because CMake
 # resolves symlinks, making "../../" point to the wrong location.
-set(VENDOR_DIR "${NUTTX_DIR}/../vendor/sifli/chips")
+set(VENDOR_DIR "${NUTTX_DIR}/../contest2026_162_yaotepai/chips")
 
 # Chip-local sources
 set(SRCS sifli_start.c sifli_irq.c sifli_uart.c sifli_lowput.c
@@ -97,6 +97,7 @@ target_include_directories(arch PRIVATE ${VENDOR_DIR}/drivers/cmsis/Include)
 target_include_directories(arch PRIVATE ${VENDOR_DIR}/drivers/cmsis/sf32lb58x)
 target_include_directories(arch PRIVATE ${VENDOR_DIR}/external/CMSIS/Include)
 target_include_directories(arch PRIVATE ${VENDOR_DIR}/boards/include/config/sf32lb58x)
+target_include_directories(arch PRIVATE ${VENDOR_DIR}/middleware/sifli_matrix)
 
 # Board-level includes
 target_include_directories(arch PRIVATE ${NUTTX_BOARD_ABS_DIR}/include)
