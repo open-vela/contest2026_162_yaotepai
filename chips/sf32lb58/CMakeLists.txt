@@ -32,6 +32,9 @@ set(SRCS sifli_start.c sifli_irq.c sifli_uart.c sifli_lowput.c
          sifli_oneshot.c sf32lb58_allocateheap.c sifli_gpio.c sifli_i2c.c
          sifli_spi.c)
 
+list(APPEND SRCS "${VENDOR_DIR}/drivers/flash.c")
+target_include_directories(arch PRIVATE ${VENDOR_DIR}/boards/include)
+       
 if(CONFIG_ADC)
     list(APPEND SRCS sf32lb_adc.c)
 endif()

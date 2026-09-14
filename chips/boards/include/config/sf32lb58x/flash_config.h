@@ -8,6 +8,7 @@
 #define __FLASH_CONFIG_H__
 
 #include <rtconfig.h>
+#include "dma_config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -110,6 +111,7 @@ extern "C" {
 #endif  /* BSP_ENABLE_QSPI3 */
 
 #ifdef BSP_ENABLE_QSPI4
+
 #if ((BSP_QSPI4_MODE == SPI_MODE_NOR)||(BSP_QSPI4_MODE == SPI_MODE_NAND))
 
 #ifndef FLASH4_CONFIG
