@@ -56,13 +56,12 @@ static UART_HandleTypeDef g_early_uart_handle;
 void arm_earlyserialinit(void)
 {
     /* 1. Configure pinmux for UART1 */
-    HAL_PIN_Set(PAD_PA19, USART1_TXD, PIN_PULLUP, 1);
-    HAL_PIN_Set(PAD_PA18, USART1_RXD, PIN_PULLUP, 1);
-
-    /* 2. Enable UART1 clock */
-    HAL_RCC_EnableModule(RCC_MOD_USART1);
+    HAL_PIN_Set(PAD_PA31, USART1_TXD, PIN_PULLUP, 1);
+    HAL_PIN_Set(PAD_PA32, USART1_RXD, PIN_PULLUP, 1);
 
     /* 3. Configure UART parameters */
+    memset(&g_early_uart_handle, 0, sizeof(g_early_uart_handle));
+
     g_early_uart_handle.Instance        = hwp_usart1;
     g_early_uart_handle.Init.BaudRate   = CONFIG_UART_BAUD;
     g_early_uart_handle.Init.WordLength = UART_WORDLENGTH_8B;
@@ -71,7 +70,7 @@ void arm_earlyserialinit(void)
     g_early_uart_handle.Init.HwFlowCtl  = UART_HWCONTROL_NONE;
     g_early_uart_handle.Init.Mode       = UART_MODE_TX_RX;
     g_early_uart_handle.Init.OverSampling = UART_OVERSAMPLING_16;
-    
+
     /* 4. Initialize UART */
     if (HAL_UART_Init(&g_early_uart_handle) != HAL_OK)
     {

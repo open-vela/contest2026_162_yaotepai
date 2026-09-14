@@ -1,0 +1,223 @@
+/*
+ * Linker script for SF32LB58 nxboot (OTA bootloader)
+ *
+ * Memory layout matches SiFli SDK bootloader:
+ *   - Code (XIP) executes directly from MPI5 NOR flash at 0x1C020000
+ *   - Data/BSS runs from SRAM at 0x20000000
+ *   - PSRAM at 0x60000000 for application firmware
+ *
+ * ROM bootrom at 0x00000000 initializes MPI5 QSPI flash controller,
+ * reads flash_table from 0x1C000000, and jumps to bootloader at 0x1C020000.
+ * Code executes via XIP (execute-in-place) from flash.
+ */
+
+/*
+ * Memory regions
+ */
+MEMORY
+{
+    flash (rx)         : ORIGIN = 0x1C020000, LENGTH = 256K  /* MPI5 bootloader storage (XIP) */
+    sram (rwx)         : ORIGIN = 0x20000000, LENGTH = 1536K /* RAM0-RAM5, data+bss+stack+heap */
+    retention_ram (rw) : ORIGIN = 0x00020000, LENGTH = 64K   /* Retention RAM (not used by nxboot) */
+    psram (rwx)        : ORIGIN = 0x60000000, LENGTH = 32M   /* MPI1 PSRAM for app firmware */
+}
+
+/*
+ * Configure the eXecute-In-Place (XIP) memory.
+ *
+ * These symbols are used by the C-library C-startup to access the
+ * .data section in flash.
+ */
+__flash_start = ORIGIN(flash);
+__flash_size  = LENGTH(flash);
+
+/*
+ * Configure the SRAM memory
+ */
+__sram_start = ORIGIN(sram);
+__sram_size  = LENGTH(sram);
+
+SECTIONS
+{
+    /*
+     * Vector table - must be at the start of the binary.
+     * With XIP, this lives at flash address 0x1C020000.
+     * ROM bootrom reads initial SP and reset handler from here.
+     */
+    .vectors :
+    {
+        _stext = ABSOLUTE(.);
+        _svectors = ABSOLUTE(.);
+        *(.vectors)
+        _evectors = ABSOLUTE(.);
+    } > flash
+
+    /*
+     * Code and read-only data - XIP from flash.
+     */
+    .text :
+    {
+        *(.text .text.*)
+        *(.gnu.linkonce.t.*)
+        *(.glue_7)         /* GLUE (Thumb)        */
+        *(.glue_7t)        /* GLUE (ARM)          */
+        *(.gcc_except_table)
+        *(.gnu.linkonce.r.*)
+        *(.rodata)
+        *(.rodata1)
+        *(.rodata.*)
+        *(.gnu.linkonce.d.*)
+
+        . = ALIGN(4);
+        *(.got)
+        *(.got.plt)
+        *(.igot)
+        *(.igot.plt)
+
+        _econst = ABSOLUTE(.);
+    } > flash
+
+    /*
+     * End of read-only code in flash.
+     * This is the LMA (load address) where .data section image starts in flash.
+     * NuttX startup code copies from here to .data VMA in SRAM.
+     */
+    _eronly = LOADADDR(.data);
+
+    /*
+     * .ARM.exidx is sorted, so has to go in its own output section.  */
+    PROVIDE_HIDDEN (__exidx_start = .);
+    .ARM.exidx :
+    {
+        *(.ARM.exidx* .gnu.linkonce.armexidx.*)
+    } > flash
+    PROVIDE_HIDDEN (__exidx_end = .);
+
+    /*
+     * Initialized data - stored in flash, copied to SRAM at startup.
+     */
+    .data :
+    {
+        _sdata = ABSOLUTE(.);
+        *(.data)
+        *(.data1)
+        *(.data.*)
+        *(.gnu.linkonce.d.*)
+        *(.jcr)
+        *(.data1)
+        *(.data.*)
+
+        . = ALIGN(4);
+        /* preinit data */
+        PROVIDE_HIDDEN (__preinit_array_start = .);
+        KEEP(*(.preinit_array))
+        PROVIDE_HIDDEN (__preinit_array_end = .);
+
+        . = ALIGN(4);
+        /* init data */
+        _sinit = ABSOLUTE(.);
+        PROVIDE(__ctors_start__ = .);
+        PROVIDE_HIDDEN (__init_array_start = .);
+        KEEP(*(SORT(.init_array.*)))
+        KEEP(*(.init_array))
+        _einit = ABSOLUTE(.);
+        PROVIDE_HIDDEN (__init_array_end = .);
+        PROVIDE(__ctors_end__ = .);
+
+        . = ALIGN(4);
+        /* finit data */
+        PROVIDE(__dtors_start__ = .);
+        PROVIDE_HIDDEN (__fini_array_start = .);
+        KEEP(*(SORT(.fini_array.*)))
+        KEEP(*(.fini_array))
+        PROVIDE_HIDDEN (__fini_array_end = .);
+        PROVIDE(__dtors_end__ = .);
+
+        *(.dynamic)
+        *(.data.rel.ro)
+        *(.data.rel.ro.*)
+
+        _edata = ABSOLUTE(.);
+    } > sram AT > flash
+
+    /*
+     * BSS - zeroed at startup
+     */
+    .bss :
+    {
+        _sbss = ABSOLUTE(.);
+        *(.bss)
+        *(.bss.*)
+        *(.gnu.linkonce.b.*)
+        *(COMMON)
+        . = ALIGN(4);
+        _ebss = ABSOLUTE(.);
+    } > sram
+
+    /*
+     * Heap and stack are managed dynamically by NuttX.
+     * g_idle_topstack in sifli_start.c defines where the heap starts.
+     * The IDLE thread stack is placed right after BSS.
+     * The initial SP in the vector table is set by the IDLE_STACK macro
+     * in arm_vectors.c: _ebss + CONFIG_IDLETHREAD_STACKSIZE.
+     */
+    __end__ = .;
+
+    /* Sections to be discarded */
+    /DISCARD/ :
+    {
+        *(.note.GNU-stack)
+        *(.gnu_debuglink)
+        *(.gnu.lto_*)
+        *(.note.gnu.build-id)
+    }
+
+    /*
+     * The nxboot section is needed by NuttX.
+     */
+    .nxboot ALIGN(4) :
+    {
+        *(.nxboot)
+    } > flash
+}
+
+/*
+ * Copy table for __cmsis_copy() - used by NuttX startup code.
+ * The NuttX sifli_start.c startup code has its own .data copy loop
+ * using _eronly, _sdata, _edata. These empty sections provide
+ * linker symbol compatibility.
+ */
+SECTIONS
+{
+    .copy.table :
+    {
+        . = ALIGN(4);
+        __copy_table_start__ = .;
+        /* NuttX startup handles .data copy via _eronly/_sdata/_edata */
+        __copy_table_end__ = .;
+    } > sram
+
+    .zero.table :
+    {
+        . = ALIGN(4);
+        __zero_table_start__ = .;
+        /* NuttX startup handles BSS zeroing */
+        __zero_table_end__ = .;
+    } > sram
+}
+
+/*
+ * PSRAM boundaries for application firmware (loaded by nxboot).
+ * We don't place any sections in PSRAM here - nxboot will load
+ * the application firmware to PSRAM at runtime.
+ */
+__psram_start = ORIGIN(psram);
+__psram_end   = ORIGIN(psram) + LENGTH(psram);
+
+/*
+ * Dummy ramfunc symbols - no RAM functions in nxboot.
+ * The startup code's ramfunc copy loop becomes a no-op.
+ */
+_siramfunc = 0;
+_sramfunc  = 0;
+_eramfunc  = 0;

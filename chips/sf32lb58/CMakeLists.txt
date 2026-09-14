@@ -48,6 +48,10 @@ if(CONFIG_MTD)
     list(APPEND SRCS sf32lb_flash.c)
 endif()
 
+if(CONFIG_BSP_USING_NAND_FLASH4)
+    list(APPEND SRCS sf32lb_nand.c)
+endif()
+
 if(CONFIG_TIMER)
     list(APPEND SRCS sf32lb_timer.c)
 endif()
@@ -105,7 +109,8 @@ target_compile_definitions(arch PRIVATE SOC_BF0_HCPU
                                         LCPU_RUN_SEPERATE_IMG
                                         HAL_TICK_PER_SECOND=1000
                                         USE_HAL_DRIVER
-                                        USE_SERIALDRIVER)
+                                        USE_SERIALDRIVER
+                                        HAL_USE_NAND)
 
 # Chip-local includes
 target_include_directories(arch PRIVATE ${NUTTX_CHIP_ABS_DIR}/include)

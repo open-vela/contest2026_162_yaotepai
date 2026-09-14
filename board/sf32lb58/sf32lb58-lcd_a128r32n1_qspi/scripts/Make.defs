@@ -24,7 +24,7 @@ include $(TOPDIR)/tools/Config.mk
 # we need to specify this Toolchain.defs according to chip arch,
 # eg:risc-v, armv8-m, armv7-m
 
-include $(TOPDIR)/arch/arm/src/armv7-m/Toolchain.defs
+include $(TOPDIR)/arch/arm/src/armv8-m/Toolchain.defs
 
 ARCHSCRIPT += $(BOARD_DIR)$(DELIM)scripts$(DELIM)ld.script
 

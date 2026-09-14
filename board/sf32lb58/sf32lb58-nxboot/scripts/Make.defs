@@ -1,0 +1,45 @@
+############################################################################
+# board/sf32lb58/sf32lb58-nxboot/scripts/Make.defs
+#
+# Copyright (C) 2026 Yang Hongbo <yang.hongbo@iotpi.xyz>
+# SPDX-License-Identifier: Apache-2.0
+#
+############################################################################
+
+include $(TOPDIR)/.config
+include $(TOPDIR)/tools/Config.mk
+
+include $(TOPDIR)/arch/arm/src/armv8-m/Toolchain.defs
+
+ARCHSCRIPT += $(BOARD_DIR)$(DELIM)scripts$(DELIM)ld.script
+
+ARCHPICFLAGS = -fpic
+
+CFLAGS := $(ARCHCFLAGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(ARCHINCLUDES) $(ARCHDEFINES) $(EXTRAFLAGS) -pipe -Werror=return-type -Werror
+
+# SiFli SDK include paths (bf0_hal.h, CMSIS, etc.)
+CFLAGS += -I$(TOPDIR)/$(CONFIG_ARCH_CHIP_CUSTOM_DIR)/../drivers/Include
+CFLAGS += -I$(TOPDIR)/$(CONFIG_ARCH_CHIP_CUSTOM_DIR)/../drivers/cmsis/Include
+CFLAGS += -I$(TOPDIR)/$(CONFIG_ARCH_CHIP_CUSTOM_DIR)/../drivers/cmsis/sf32lb58x
+CFLAGS += -I$(TOPDIR)/$(CONFIG_ARCH_CHIP_CUSTOM_DIR)/../external/CMSIS/Include
+CFLAGS += -I$(TOPDIR)/$(CONFIG_ARCH_CHIP_CUSTOM_DIR)/../boards/include/config/sf32lb58x
+CFLAGS += -I$(TOPDIR)/$(CONFIG_ARCH_CHIP_CUSTOM_DIR)/include
+CFLAGS += -I$(TOPDIR)/../contest2026_162_yaotepai/chips/middleware/sifli_matrix
+
+# SiFli HAL defines
+CFLAGS += -DSOC_BF0_HCPU -DSF32LB58X -DHAL_TICK_PER_SECOND=1000 -DUSE_HAL_DRIVER -DHAL_USE_NAND
+
+# Suppress -Werror for SiFli SDK headers (not -Werror clean)
+CFLAGS += -Wno-error
+CPICFLAGS = $(ARCHPICFLAGS) $(CFLAGS)
+CXXFLAGS := $(ARCHCXXFLAGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(ARCHXXINCLUDES) $(ARCHDEFINES) $(EXTRAFLAGS) -pipe
+CXXPICFLAGS = $(ARCHPICFLAGS) $(CXXFLAGS)
+CPPFLAGS := $(ARCHINCLUDES) $(ARCHDEFINES) $(EXTRAFLAGS)
+AFLAGS := $(CFLAGS) -D__ASSEMBLY__
+
+EXTRA_LIBS += $(wildcard $(shell readlink -f $(TOPDIR)/$(CONFIG_ARCH_BOARD_CUSTOM_DIR)/libs/$(CONFIG_ARCH_BOARD_CUSTOM_NAME))/*.a)
+
+# Allow our _vectors override in sifli_start.c to supersede the NuttX default
+# in arm_vectors.c.  The ROM bootloader does not set MSP from the vector
+# table, so we need a custom reset handler that sets MSP before any C code.
+LDFLAGS += -Wl,-z,muldefs

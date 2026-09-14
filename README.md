@@ -86,6 +86,21 @@ cd ..
 ./build.sh <board-config-path> [menuconfig|distclean] [-j8]
 ```
 
+### nxboot 编译
+
+```bash
+cd /home/hongbo/Developer/Embedded/OpenVela && \
+  bash build.sh contest2026_162_yaotepai/board/sf32lb58/sf32lb58-nxboot/configs/boot \
+  --cmake -b cmake_out/nxboot -j8 && \
+  cd cmake_out/nxboot && \
+  cp nuttx nxboot.elf && cp nuttx.bin nxboot.bin && cp nuttx.map nxboot.map
+```
+
+产物位于 `cmake_out/nxboot/`：
+- `nxboot.bin` — 烧录用二进制
+- `nxboot.elf` — 带符号信息的 ELF
+- `nxboot.map` — 链接 map
+
 > 具体的 board config 路径、目标产物、模拟器/真机部署方式请以你所在赛道的教程导航为准。本仓 `app/` `quickapp/` `board/` 三个示例骨架对应的 Kconfig 选项可通过 `menuconfig` 启用。
 
 ---
