@@ -40,6 +40,8 @@
 #include <nuttx/mutex.h>
 
 #include "bf0_hal_mpi_ex.h"
+#include "flash_table.h"
+#include "flash_config.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -51,8 +53,6 @@
 #define SF32LB_NAND_DEFAULT_BLK_SIZE    (128 * 1024)  /* 64 pages x 2KB */
 
 /* Clock divider for NAND on MPI3 */
-
-#define SF32LB_NAND_CLK_DIV             3
 
 /****************************************************************************
  * Private Types
@@ -77,16 +77,21 @@ struct sf32lb_nand_dev_s
 static mutex_t g_nand_lock = NXMUTEX_INITIALIZER;
 
 static QSPI_FLASH_CTX_T g_spi_nand_flash_ctx;
+static DMA_HandleTypeDef spi_nand_dma_handle;
 static bool g_nand_hw_initialized;
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
+static int nand_index = -1;   // only ONE nand support in system.
+
 static int sf32lb_nand_hw_init(void)
 {
   HAL_StatusTypeDef status;
-  qspi_configure_t flash_cfg;
+
+  qspi_configure_t flash_cfg; // = FLASH3_CONFIG;
+  struct dma_config flash_dma;
 
   if (g_nand_hw_initialized)
     {
@@ -100,15 +105,24 @@ static int sf32lb_nand_hw_init(void)
     CONFIG_BSP_QSPI4_MEM_SIZE * 1024U * 1024U;
   g_spi_nand_flash_ctx.handle.freq = 24000000;
 
-  memset(&flash_cfg, 0, sizeof(flash_cfg));
-  flash_cfg.base = FLASH4_BASE_ADDR;
-  flash_cfg.Instance = FLASH4;
-  flash_cfg.line = 1;             /* SPI single line for init */
-  flash_cfg.msize = CONFIG_BSP_QSPI4_MEM_SIZE;
-  flash_cfg.SpiMode = SPI_MODE_NAND;
+  struct dma_config flash_dma4 = FLASH4_DMA_CONFIG;
+  qspi_configure_t flash_cfg4 = FLASH4_CONFIG;
+
+
+  uint16_t div = BSP_GetFlash4DIV();
+  int clk_mode = RCC_CLK_MOD_FLASH4;
+
+  memcpy(&flash_cfg, &flash_cfg4, sizeof(qspi_configure_t));
+  memcpy(&flash_dma, &flash_dma4, sizeof(struct dma_config));
+
+  flash_cfg.base = HCPU_MPI_SBUS_ADDR(flash_cfg.base);
+  
+  nand_index = 4;
+
+  g_spi_nand_flash_ctx.handle.freq = flash_get_freq(clk_mode, div, 1);  
 
   status = HAL_FLASH_Init(&g_spi_nand_flash_ctx, &flash_cfg,
-                          NULL, NULL, SF32LB_NAND_CLK_DIV);
+                          &spi_nand_dma_handle, &flash_dma, div);
   if (status != HAL_OK)
     {
       syslog(LOG_ERR, "ERROR: NAND HAL_FLASH_Init failed: %d\n", status);
