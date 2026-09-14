@@ -1,0 +1,2 @@
+# Board-specific Kconfig for sf32lb58-nxboot
+# Currently empty — all config is via defconfig and chip-level Kconfig.

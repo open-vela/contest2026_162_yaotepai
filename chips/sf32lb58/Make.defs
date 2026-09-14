@@ -24,6 +24,23 @@
 # SF32LB58 is Cortex-M33 (ARMv8-M)
 include armv8-m/Make.defs
 
+# Suppress -Werror for SiFli SDK headers (not -Werror clean)
+CFLAGS += -Wno-error -Wno-error=return-type
+
+# SiFli HAL defines (needed for chip and HAL compilation)
+CFLAGS += -DSOC_BF0_HCPU -DSF32LB58X -DHAL_TICK_PER_SECOND=1000 -DUSE_HAL_DRIVER -DHAL_USE_NAND
+
+# SiFli SDK include paths
+# chip/ symlink → vendor/sifli/chips/sf32lb58/; sibling dirs (drivers/, external/, etc.) are in vendor/sifli/chips/
+# Middleware (sifli_matrix) lives in the contest repo, not in vendor/
+INCLUDES += ${INCDIR_PREFIX}$(TOPDIR)$(DELIM)arch$(DELIM)arm$(DELIM)src$(DELIM)chip$(DELIM)..$(DELIM)drivers$(DELIM)Include
+INCLUDES += ${INCDIR_PREFIX}$(TOPDIR)$(DELIM)arch$(DELIM)arm$(DELIM)src$(DELIM)chip$(DELIM)..$(DELIM)drivers$(DELIM)cmsis$(DELIM)Include
+INCLUDES += ${INCDIR_PREFIX}$(TOPDIR)$(DELIM)arch$(DELIM)arm$(DELIM)src$(DELIM)chip$(DELIM)..$(DELIM)drivers$(DELIM)cmsis$(DELIM)sf32lb58x
+INCLUDES += ${INCDIR_PREFIX}$(TOPDIR)$(DELIM)arch$(DELIM)arm$(DELIM)src$(DELIM)chip$(DELIM)..$(DELIM)external$(DELIM)CMSIS$(DELIM)Include
+INCLUDES += ${INCDIR_PREFIX}$(TOPDIR)$(DELIM)arch$(DELIM)arm$(DELIM)src$(DELIM)chip$(DELIM)..$(DELIM)boards$(DELIM)include$(DELIM)config$(DELIM)sf32lb58x
+INCLUDES += ${INCDIR_PREFIX}$(TOPDIR)$(DELIM)arch$(DELIM)arm$(DELIM)src$(DELIM)chip$(DELIM)include
+INCLUDES += ${INCDIR_PREFIX}$(TOPDIR)$(DELIM)..$(DELIM)contest2026_162_yaotepai$(DELIM)chips$(DELIM)middleware$(DELIM)sifli_matrix
+
 # Chip-local C sources
 CHIP_CSRCS += sifli_start.c sifli_irq.c sifli_uart.c sifli_lowput.c
 CHIP_CSRCS += sifli_oneshot.c sf32lb58_allocateheap.c sifli_gpio.c
@@ -45,6 +62,10 @@ ifeq ($(CONFIG_MTD),y)
 CHIP_CSRCS += sf32lb_flash.c
 endif
 
+ifdef CONFIG_BSP_USING_NAND_FLASH3
+CHIP_CSRCS += sf32lb_nand.c
+endif
+
 ifeq ($(CONFIG_TIMER),y)
 CHIP_CSRCS += sf32lb_timer.c
 endif
@@ -60,4 +81,33 @@ CHIP_CSRCS += ../drivers/cmsis/sf32lb58x/lcpu_patch.c
 CHIP_CSRCS += ../drivers/cmsis/sf32lb58x/bf0_lcpu_init.c
 endif
 
+# SiFli HAL library (required by chip drivers)
+# Symlinked from ../drivers/hal/ into chip directory
+CHIP_CSRCS += bf0_hal.c bf0_hal_dma.c bf0_hal_gpio.c bf0_hal_rcc.c
+CHIP_CSRCS += bf0_hal_uart.c bf0_hal_cortex.c bf0_hal_qspi.c
+CHIP_CSRCS += bf0_hal_mpi.c bf0_hal_mpi_ex.c bf0_hal_ext_dma.c
+CHIP_CSRCS += bf0_hal_pmu.c bf0_hal_hpaon.c bf0_hal_lpaon.c
+CHIP_CSRCS += bf0_hal_pinmux.c bf0_hal_hlp.c bf0_sys_cfg.c
+CHIP_CSRCS += flash_table.c nand_table.c
+CHIP_CSRCS += bf0_hal_adc.c bf0_hal_aes.c bf0_hal_audcodec.c
+CHIP_CSRCS += bf0_hal_audprc.c bf0_hal_bleaon.c bf0_hal_busmon.c
+CHIP_CSRCS += bf0_hal_crc.c bf0_hal_dsi.c bf0_hal_efuse.c
+CHIP_CSRCS += bf0_hal_epic.c bf0_hal_ezip.c bf0_hal_facc.c
+CHIP_CSRCS += bf0_hal_fft.c bf0_hal_hcd.c bf0_hal_i2c.c
+CHIP_CSRCS += bf0_hal_i2s.c bf0_hal_lcdc.c bf0_hal_lcpu_config.c
+CHIP_CSRCS += bf0_hal_lpcomp.c bf0_hal_lptim.c bf0_hal_lrc_cal.c
+CHIP_CSRCS += bf0_hal_mailbox.c bf0_hal_mpi_psram.c bf0_hal_nn_acc.c
+CHIP_CSRCS += bf0_hal_patch.c bf0_hal_pcd.c bf0_hal_pdm.c
+CHIP_CSRCS += bf0_hal_psram.c bf0_hal_ptc.c bf0_hal_qspi_ex.c
+CHIP_CSRCS += bf0_hal_rng.c bf0_hal_rtc.c bf0_hal_sdadc.c
+CHIP_CSRCS += bf0_hal_sd_ex.c bf0_hal_sdhci.c bf0_hal_sdmmc.c
+CHIP_CSRCS += bf0_hal_secu.c bf0_hal_spi.c bf0_hal_tim.c
+CHIP_CSRCS += bf0_hal_tim_ex.c bf0_hal_tsen.c bf0_hal_wdt.c
+CHIP_CSRCS += sifli_bbm.c
+
+# CMSIS system file (provides SystemPowerOnModeGet etc.)
+CHIP_CSRCS += system_bf0_ap.c
+
+ifeq ($(CONFIG_BSP_USING_IPC_QUEUE),y)
 include chip/ipc_queue/Make.defs
+endif

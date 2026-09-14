@@ -58,6 +58,10 @@ config ARCH_CHIP_SF32LB58_ACPU
 
 endchoice
 
+config SOC_SF32LB58X
+    bool "soc_sf32lb58x"
+    default y
+
 menu "On-chip Peripheral RTOS Drivers"
 
     menuconfig BSP_USING_GPIO
