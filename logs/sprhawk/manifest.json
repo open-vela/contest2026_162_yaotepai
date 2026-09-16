@@ -92,14 +92,14 @@
       "session_id": "cb537475-b2fa-4915-9681-7e64ecc29155",
       "tool": "claude-code",
       "started_at": "2026-09-04T01:44:18.079Z",
-      "last_event_at": "2026-09-08T01:51:41.886Z",
-      "event_count": 437,
-      "raw_event_count": 5547,
-      "file_path": "logs/sprhawk/2026-09-07/claude-code__cb537475-b2fa-4915-9681-7e64ecc29155.jsonl",
+      "last_event_at": "2026-09-16T04:30:52.228Z",
+      "event_count": 116,
+      "raw_event_count": 5713,
+      "file_path": "logs/sprhawk/2026-09-08/claude-code__cb537475-b2fa-4915-9681-7e64ecc29155.jsonl",
       "collection_mode": "cli",
       "health": "ok",
       "model": "mimo-v2.5-pro"
     }
   ],
-  "updated_at": "2026-09-08T01:51:41.894Z"
+  "updated_at": "2026-09-16T04:30:52.229Z"
 }
