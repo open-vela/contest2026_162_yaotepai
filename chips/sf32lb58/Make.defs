@@ -62,7 +62,7 @@ ifeq ($(CONFIG_MTD),y)
 CHIP_CSRCS += sf32lb_flash.c
 endif
 
-ifdef CONFIG_BSP_USING_NAND_FLASH3
+ifdef CONFIG_BSP_USING_NAND_FLASH4
 CHIP_CSRCS += sf32lb_nand.c
 endif
 
