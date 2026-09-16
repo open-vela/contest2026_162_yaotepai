@@ -42,6 +42,7 @@
 #include "bf0_hal_mpi_ex.h"
 #include "flash_table.h"
 #include "flash_config.h"
+#include "sfconfig.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -109,8 +110,9 @@ static int sf32lb_nand_hw_init(void)
   qspi_configure_t flash_cfg4 = FLASH4_CONFIG;
 
 
-  uint16_t div = BSP_GetFlash4DIV();
-  int clk_mode = RCC_CLK_MOD_FLASH4;
+  BSP_SetFlash4DIV(6);  
+  uint16_t div = BSP_GetFlash4DIV(); // 6
+  int clk_mode = RCC_CLK_MOD_FLASH4; // 10
 
   memcpy(&flash_cfg, &flash_cfg4, sizeof(qspi_configure_t));
   memcpy(&flash_dma, &flash_dma4, sizeof(struct dma_config));
@@ -119,10 +121,12 @@ static int sf32lb_nand_hw_init(void)
   
   nand_index = 4;
 
-  g_spi_nand_flash_ctx.handle.freq = flash_get_freq(clk_mode, div, 1);  
+  g_spi_nand_flash_ctx.handle.freq = flash_get_freq(clk_mode, div, 1);  // 36000000
 
   status = HAL_FLASH_Init(&g_spi_nand_flash_ctx, &flash_cfg,
-                          &spi_nand_dma_handle, &flash_dma, div);
+                          /* &spi_nand_dma_handle, &flash_dma, */
+                          NULL, NULL,                          
+                          div);
   if (status != HAL_OK)
     {
       syslog(LOG_ERR, "ERROR: NAND HAL_FLASH_Init failed: %d\n", status);
@@ -145,7 +149,7 @@ static int sf32lb_nand_hw_init(void)
 
   g_nand_hw_initialized = true;
   syslog(LOG_INFO,
-    "INFO: SPI NAND initialized on MPI3: page=%lu blk=%lu size=%luMB\n",
+    "INFO: SPI NAND initialized on MPI4: page=%lu blk=%lu size=%luMB\n",
     (unsigned long)HAL_NAND_PAGE_SIZE(&g_spi_nand_flash_ctx.handle),
     (unsigned long)HAL_NAND_BLOCK_SIZE(&g_spi_nand_flash_ctx.handle),
     (unsigned long)g_spi_nand_flash_ctx.handle.size / (1024U * 1024U));
