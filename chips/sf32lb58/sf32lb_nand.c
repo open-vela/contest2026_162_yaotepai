@@ -86,6 +86,7 @@ static bool g_nand_hw_initialized;
  ****************************************************************************/
 
 static int nand_index = -1;   // only ONE nand support in system.
+static uint32_t nand_flash_sbus_base;  /* SBUS base for partition offset calc */
 
 static int sf32lb_nand_hw_init(void)
 {
@@ -117,7 +118,17 @@ static int sf32lb_nand_hw_init(void)
   memcpy(&flash_cfg, &flash_cfg4, sizeof(qspi_configure_t));
   memcpy(&flash_dma, &flash_dma4, sizeof(struct dma_config));
 
-  flash_cfg.base = HCPU_MPI_SBUS_ADDR(flash_cfg.base);
+  /* Keep flash_cfg.base as CBUS (0x18000000) for the HAL.
+   * HAL_FLASH_Init stores cfg->base into both ctx->base_addr and
+   * handle->base.  handle->base MUST be CBUS because the HAL's memcpy
+   * reads NAND page data from the QSPI memory-mapped region via
+   * handle->base — the CPU can only access this at CBUS, not SBUS.
+   *
+   * Partition offset calculations use SBUS addresses (0x68000000+),
+   * so we compute the SBUS base separately.
+   */
+
+  nand_flash_sbus_base = HCPU_MPI_SBUS_ADDR(flash_cfg.base);
   
   nand_index = 4;
 
@@ -125,13 +136,19 @@ static int sf32lb_nand_hw_init(void)
 
   status = HAL_FLASH_Init(&g_spi_nand_flash_ctx, &flash_cfg,
                           /* &spi_nand_dma_handle, &flash_dma, */
-                          NULL, NULL,                          
+                          NULL, NULL,
                           div);
   if (status != HAL_OK)
     {
       syslog(LOG_ERR, "ERROR: NAND HAL_FLASH_Init failed: %d\n", status);
       return -EIO;
     }
+
+  /* NOTE: handle.base stays at FLASH4_BASE_ADDR (CBUS 0x18000000).
+   * ctx->base_addr is set to SBUS (0x68000000) by HAL_FLASH_Init.
+   * Partition offset calculations use ctx->base_addr (SBUS).
+   * HAL internal operations use handle.base (CBUS) — do not change.
+   */
 
   /* Allocate NAND page buffer required by HAL */
 
@@ -153,6 +170,20 @@ static int sf32lb_nand_hw_init(void)
     (unsigned long)HAL_NAND_PAGE_SIZE(&g_spi_nand_flash_ctx.handle),
     (unsigned long)HAL_NAND_BLOCK_SIZE(&g_spi_nand_flash_ctx.handle),
     (unsigned long)g_spi_nand_flash_ctx.handle.size / (1024U * 1024U));
+  syslog(LOG_INFO,
+    "INFO: NAND ctx: dev_id=0x%08lx base_addr=0x%08lx total_size=%lu\n"
+    "INFO: NAND handle: base=0x%08lx size=%lu Instance=%p ctable=%p\n"
+    "INFO: NAND isNand=%d dma=%p data_buf=%p\n",
+    (unsigned long)g_spi_nand_flash_ctx.dev_id,
+    (unsigned long)g_spi_nand_flash_ctx.base_addr,
+    (unsigned long)g_spi_nand_flash_ctx.total_size,
+    (unsigned long)g_spi_nand_flash_ctx.handle.base,
+    (unsigned long)g_spi_nand_flash_ctx.handle.size,
+    g_spi_nand_flash_ctx.handle.Instance,
+    (void *)g_spi_nand_flash_ctx.handle.ctable,
+    (int)g_spi_nand_flash_ctx.handle.isNand,
+    (void *)g_spi_nand_flash_ctx.handle.dma,
+    (void *)g_spi_nand_flash_ctx.handle.data_buf);
 
   return OK;
 }
@@ -181,7 +212,7 @@ static int sf32lb_nand_geometry(FAR struct sf32lb_nand_dev_s *priv,
     }
 
   memset(geo, 0, sizeof(*geo));
-  geo->blocksize = priv->block_size;
+  geo->blocksize = priv->page_size;
   geo->erasesize = priv->block_size;
   geo->neraseblocks = priv->nblocks;
   return OK;
@@ -193,6 +224,7 @@ static ssize_t sf32lb_nand_read(FAR struct mtd_dev_s *dev, off_t offset,
   FAR struct sf32lb_nand_dev_s *priv = (FAR struct sf32lb_nand_dev_s *)dev;
   FAR FLASH_HandleTypeDef *handle = priv->handle;
   uint32_t page_size = priv->page_size;
+  size_t remaining = nbytes;
   uint32_t page_addr;
   uint32_t page_off;
   uint32_t chunk;
@@ -203,16 +235,34 @@ static ssize_t sf32lb_nand_read(FAR struct mtd_dev_s *dev, off_t offset,
       return -EINVAL;
     }
 
+  syslog(LOG_INFO,
+         "NAND READ entry: offset=0x%08lx nbytes=%lu buf=%p\n",
+         (unsigned long)offset, (unsigned long)nbytes, buffer);
+
   sf32lb_nand_lock();
 
-  while (nbytes > 0)
+  while (remaining > 0)
     {
       page_addr = (uint32_t)offset / page_size * page_size;
       page_off = (uint32_t)offset % page_size;
       chunk = page_size - page_off;
-      if (chunk > nbytes)
+      if (chunk > remaining)
         {
-          chunk = nbytes;
+          chunk = remaining;
+        }
+
+      syslog(LOG_INFO,
+             "NAND read: off=0x%08lx page=0x%08lx chunk=%lu "
+             "buf=%p ctable=%p isNand=%d\n",
+             (unsigned long)offset, (unsigned long)page_addr,
+             (unsigned long)chunk, buffer,
+             (void *)handle->ctable, (int)handle->isNand);
+
+      if (handle->ctable == NULL)
+        {
+          syslog(LOG_ERR, "ERROR: NAND ctable is NULL!\n");
+          sf32lb_nand_unlock();
+          return -EIO;
         }
 
       ret = HAL_NAND_READ_PAGE(handle, page_addr, buffer, chunk);
@@ -225,13 +275,17 @@ static ssize_t sf32lb_nand_read(FAR struct mtd_dev_s *dev, off_t offset,
           return -EIO;
         }
 
+      /* Invalidate D-cache so CPU sees DMA'd data */
+
+      SCB_InvalidateDCache_by_Addr(buffer, chunk);
+
       offset += chunk;
       buffer += chunk;
-      nbytes -= chunk;
+      remaining -= chunk;
     }
 
   sf32lb_nand_unlock();
-  return (ssize_t)(nbytes == 0 ? 0 : -EIO);  /* unreachable if loop completes */
+  return (ssize_t)nbytes;
 }
 
 static ssize_t sf32lb_nand_bread(FAR struct mtd_dev_s *dev,
@@ -241,9 +295,7 @@ static ssize_t sf32lb_nand_bread(FAR struct mtd_dev_s *dev,
   FAR struct sf32lb_nand_dev_s *priv = (FAR struct sf32lb_nand_dev_s *)dev;
   FAR FLASH_HandleTypeDef *handle = priv->handle;
   uint32_t page_size = priv->page_size;
-  uint32_t pages_per_block = priv->block_size / page_size;
-  uint32_t block;
-  uint32_t page;
+  size_t i;
   int ret;
 
   if (startblock < 0 || buffer == NULL || nblocks == 0)
@@ -253,26 +305,30 @@ static ssize_t sf32lb_nand_bread(FAR struct mtd_dev_s *dev,
 
   sf32lb_nand_lock();
 
-  for (block = 0; block < nblocks; block++)
+  if (handle->ctable == NULL)
     {
-      uint32_t blk_addr = (uint32_t)(startblock + block) * priv->block_size;
+      syslog(LOG_ERR, "ERROR: NAND ctable is NULL in bread!\n");
+      sf32lb_nand_unlock();
+      return -EIO;
+    }
 
-      for (page = 0; page < pages_per_block; page++)
+  for (i = 0; i < nblocks; i++)
+    {
+      uint32_t page_addr = (uint32_t)(startblock + i) * page_size;
+
+      ret = HAL_NAND_READ_PAGE(handle, page_addr, buffer, page_size);
+      if (ret <= 0)
         {
-          uint32_t page_addr = blk_addr + page * page_size;
-
-          ret = HAL_NAND_READ_PAGE(handle, page_addr, buffer, page_size);
-          if (ret <= 0)
-            {
-              syslog(LOG_ERR,
-                     "ERROR: NAND bread failed: addr=0x%08lx ret=%d\n",
-                     (unsigned long)page_addr, ret);
-              sf32lb_nand_unlock();
-              return -EIO;
-            }
-
-          buffer += page_size;
+          syslog(LOG_ERR,
+                 "ERROR: NAND bread failed: addr=0x%08lx ret=%d\n",
+                 (unsigned long)page_addr, ret);
+          sf32lb_nand_unlock();
+          return -EIO;
         }
+
+      SCB_InvalidateDCache_by_Addr(buffer, page_size);
+
+      buffer += page_size;
     }
 
   sf32lb_nand_unlock();
@@ -286,9 +342,7 @@ static ssize_t sf32lb_nand_bwrite(FAR struct mtd_dev_s *dev,
   FAR struct sf32lb_nand_dev_s *priv = (FAR struct sf32lb_nand_dev_s *)dev;
   FAR FLASH_HandleTypeDef *handle = priv->handle;
   uint32_t page_size = priv->page_size;
-  uint32_t pages_per_block = priv->block_size / page_size;
-  uint32_t block;
-  uint32_t page;
+  size_t i;
   int ret;
 
   if (startblock < 0 || buffer == NULL || nblocks == 0)
@@ -298,26 +352,21 @@ static ssize_t sf32lb_nand_bwrite(FAR struct mtd_dev_s *dev,
 
   sf32lb_nand_lock();
 
-  for (block = 0; block < nblocks; block++)
+  for (i = 0; i < nblocks; i++)
     {
-      uint32_t blk_addr = (uint32_t)(startblock + block) * priv->block_size;
+      uint32_t page_addr = (uint32_t)(startblock + i) * page_size;
 
-      for (page = 0; page < pages_per_block; page++)
+      ret = HAL_NAND_WRITE_PAGE(handle, page_addr, buffer, page_size);
+      if (ret <= 0)
         {
-          uint32_t page_addr = blk_addr + page * page_size;
-
-          ret = HAL_NAND_WRITE_PAGE(handle, page_addr, buffer, page_size);
-          if (ret <= 0)
-            {
-              syslog(LOG_ERR,
-                     "ERROR: NAND bwrite failed: addr=0x%08lx ret=%d\n",
-                     (unsigned long)page_addr, ret);
-              sf32lb_nand_unlock();
-              return -EIO;
-            }
-
-          buffer += page_size;
+          syslog(LOG_ERR,
+                 "ERROR: NAND bwrite failed: addr=0x%08lx ret=%d\n",
+                 (unsigned long)page_addr, ret);
+          sf32lb_nand_unlock();
+          return -EIO;
         }
+
+      buffer += page_size;
     }
 
   sf32lb_nand_unlock();
@@ -329,7 +378,10 @@ static int sf32lb_nand_erase(FAR struct mtd_dev_s *dev, off_t startblock,
 {
   FAR struct sf32lb_nand_dev_s *priv = (FAR struct sf32lb_nand_dev_s *)dev;
   FAR FLASH_HandleTypeDef *handle = priv->handle;
-  uint32_t block;
+  uint32_t pages_per_blk = priv->block_size / priv->page_size;
+  uint32_t first_eb = (uint32_t)startblock / pages_per_blk;
+  uint32_t last_eb = ((uint32_t)(startblock + nblocks) - 1) / pages_per_blk;
+  uint32_t eb;
   int ret;
 
   if (startblock < 0 || nblocks == 0)
@@ -339,16 +391,16 @@ static int sf32lb_nand_erase(FAR struct mtd_dev_s *dev, off_t startblock,
 
   sf32lb_nand_lock();
 
-  for (block = 0; block < nblocks; block++)
+  for (eb = first_eb; eb <= last_eb; eb++)
     {
-      uint32_t blk_addr = (uint32_t)(startblock + block) * priv->block_size;
+      uint32_t blk_addr = eb * priv->block_size;
 
       ret = HAL_NAND_ERASE_BLK(handle, blk_addr);
       if (ret != 0)
         {
           syslog(LOG_ERR,
-                 "ERROR: NAND erase failed: block=%lu addr=0x%08lx ret=%d\n",
-                 (unsigned long)(startblock + block),
+                 "ERROR: NAND erase failed: eb=%lu addr=0x%08lx ret=%d\n",
+                 (unsigned long)eb,
                  (unsigned long)blk_addr, ret);
           sf32lb_nand_unlock();
           return -EIO;
@@ -386,8 +438,9 @@ static int sf32lb_nand_ioctl(FAR struct mtd_dev_s *dev, int cmd,
 
           if (info != NULL)
             {
-              info->numsectors = priv->nblocks;
-              info->sectorsize = priv->block_size;
+              info->numsectors = priv->nblocks *
+                                (priv->block_size / priv->page_size);
+              info->sectorsize = priv->page_size;
               info->startsector = 0;
               info->parent[0] = '\0';
               ret = OK;
@@ -543,24 +596,31 @@ int sf32lb_nand_register_partitions(
         }
       else
         {
-          /* Create a sub-MTD for this partition */
+          /* Create a sub-MTD for this partition.
+           * part_offsets[] are absolute SBUS addresses — convert to
+           * block numbers relative to the start of the NAND device.
+           */
 
-          part = mtd_partition(whole,
-                              (off_t)(part_offsets[i] /
-                                ((struct sf32lb_nand_dev_s *)whole)->
-                                  block_size),
-                              (size_t)(part_sizes[i] /
-                                ((struct sf32lb_nand_dev_s *)whole)->
-                                  block_size));
+          FAR struct sf32lb_nand_dev_s *wdev =
+            (FAR struct sf32lb_nand_dev_s *)whole;
+          uint32_t page_size = wdev->page_size;
+          off_t startblock =
+            (off_t)((part_offsets[i] - nand_flash_sbus_base) / page_size);
+          size_t nblocks = (size_t)(part_sizes[i] / page_size);
+
+          part = mtd_partition(whole, startblock, nblocks);
           if (part == NULL)
             {
               syslog(LOG_ERR,
-                     "ERROR: mtd_partition(%s) failed\n", devnames[i]);
+                     "ERROR: mtd_partition(%s, pg=%lu, n=%lu) failed\n",
+                     devnames[i],
+                     (unsigned long)startblock,
+                     (unsigned long)nblocks);
               continue;
             }
         }
 
-      ret = register_mtddriver(devnames[i], part, 0, part);
+      ret = register_mtddriver(devnames[i], part, 0755, part);
       if (ret < 0)
         {
           syslog(LOG_ERR,
