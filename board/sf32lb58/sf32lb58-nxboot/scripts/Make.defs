@@ -42,4 +42,4 @@ EXTRA_LIBS += $(wildcard $(shell readlink -f $(TOPDIR)/$(CONFIG_ARCH_BOARD_CUSTO
 # Allow our _vectors override in sifli_start.c to supersede the NuttX default
 # in arm_vectors.c.  The ROM bootloader does not set MSP from the vector
 # table, so we need a custom reset handler that sets MSP before any C code.
-LDFLAGS += -Wl,-z,muldefs
+LDFLAGS += -z muldefs
