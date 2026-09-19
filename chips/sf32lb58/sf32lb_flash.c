@@ -43,7 +43,7 @@
 #define SF32LB_NOR_ERASE_SIZE          QSPI_NOR_SECT_SIZE
 #define SF32LB_NOR_PAGE_SHIFT          (12)
 #define SF32LB_NOR_PAGE_SIZE           (1U << SF32LB_NOR_PAGE_SHIFT)
-#define SF32LB_NOR_TOTAL_SIZE          (16U * 1024U * 1024U)
+#define SF32LB_NOR_TOTAL_SIZE          (CONFIG_BSP_QSPI4_MEM_SIZE * 1024U * 1024U)
 #define SF32LB_NOR_MIN_VALID_SIZE      (2U * 1024U * 1024U)
 #define SF32LB_NOR_CLK_DIV             (2)
 
@@ -125,17 +125,18 @@ static int sf32lb_flash_hw_init(void)
   HAL_StatusTypeDef status;
   qspi_configure_t flash_cfg;
   uintptr_t pc;
-#ifdef CONFIG_BSP_QSPI2_USING_DMA
+#ifdef CONFIG_BSP_QSPI4_USING_DMA
   struct dma_config flash_dma;
 #endif
 
   memset(&g_spi_nor_flash_ctx, 0, sizeof(g_spi_nor_flash_ctx));
-  g_spi_nor_flash_ctx.handle.Instance = FLASH2;
-  g_spi_nor_flash_ctx.handle.base = FLASH2_BASE_ADDR;
+  g_spi_nor_flash_ctx.handle.Instance = FLASH4;
+  g_spi_nor_flash_ctx.handle.base = FLASH4_BASE_ADDR;
   g_spi_nor_flash_ctx.handle.size = SF32LB_NOR_TOTAL_SIZE;
   g_spi_nor_flash_ctx.handle.freq = 24000000;
   g_spi_nor_flash_ctx.handle.buf_mode = 0;
 
+#if 0  
   /* Running from FLASH2 XIP: avoid reinitializing active flash controller
    * during bringup, which can stall boot before shell is up.
    */
@@ -148,20 +149,21 @@ static int sf32lb_flash_hw_init(void)
              "WARN: skip HAL_FLASH_Init during XIP bringup, NOR write/erase disabled\n");
       return OK;
     }
-
+#endif
+  
   memset(&flash_cfg, 0, sizeof(flash_cfg));
-  flash_cfg.base = FLASH2_BASE_ADDR;
-  flash_cfg.Instance = FLASH2;
+  flash_cfg.base = FLASH4_BASE_ADDR;
+  flash_cfg.Instance = FLASH4;
   flash_cfg.line = 2;
   flash_cfg.msize = SF32LB_NOR_TOTAL_SIZE / (1024U * 1024U);
   flash_cfg.SpiMode = SPI_MODE_NOR;
 
-#ifdef CONFIG_BSP_QSPI2_USING_DMA
+#ifdef CONFIG_BSP_QSPI4_USING_DMA
   memset(&flash_dma, 0, sizeof(flash_dma));
-  flash_dma.dma_irq_prio = FLASH2_DMA_IRQ_PRIO;
-  flash_dma.dma_irq = FLASH2_DMA_IRQ;
-  flash_dma.Instance = FLASH2_DMA_INSTANCE;
-  flash_dma.request = FLASH2_DMA_REQUEST;
+  flash_dma.dma_irq_prio = FLASH4_DMA_IRQ_PRIO;
+  flash_dma.dma_irq = FLASH4_DMA_IRQ;
+  flash_dma.Instance = FLASH4_DMA_INSTANCE;
+  flash_dma.request = FLASH4_DMA_REQUEST;
 
   status = HAL_FLASH_Init(&g_spi_nor_flash_ctx, &flash_cfg,
                           &g_spi_nor_flash_dma_handle,
@@ -198,8 +200,8 @@ static int SF32LB_FLASH_RAMFUNC sf32lb_flash_preinit_runtime(void)
   memset(&g_spi_nor_flash_ctx, 0, sizeof(g_spi_nor_flash_ctx));
   memset(&g_spi_nor_flash_dma_handle, 0, sizeof(g_spi_nor_flash_dma_handle));
 
-  hflash->Instance = FLASH2;
-  hflash->base = FLASH2_BASE_ADDR;
+  hflash->Instance = FLASH4;
+  hflash->base = FLASH4_BASE_ADDR;
   hflash->size = SF32LB_NOR_TOTAL_SIZE;
   hflash->freq = 24000000;
 
@@ -248,10 +250,10 @@ static int SF32LB_FLASH_RAMFUNC sf32lb_flash_preinit_runtime(void)
    * manually, mirroring what HAL_FLASH_Init would do.
    */
 
-#ifdef CONFIG_BSP_QSPI2_USING_DMA
+#ifdef CONFIG_BSP_QSPI4_USING_DMA
   hflash->dma = &g_spi_nor_flash_dma_handle;
-  hflash->dma->Instance                 = FLASH2_DMA_INSTANCE;
-  hflash->dma->Init.Request             = FLASH2_DMA_REQUEST;
+  hflash->dma->Instance                 = FLASH4_DMA_INSTANCE;
+  hflash->dma->Init.Request             = FLASH4_DMA_REQUEST;
   hflash->dma->Init.Direction           = DMA_MEMORY_TO_PERIPH;
   hflash->dma->Init.PeriphInc           = DMA_PINC_DISABLE;
   hflash->dma->Init.MemInc              = DMA_MINC_ENABLE;
@@ -1417,3 +1419,151 @@ FLASH_HandleTypeDef *sf32lb_flash_get_handle(void)
 {
     return &g_spi_nor_flash_ctx.handle;
 }
+
+static bool g_flash_hw_initialized;
+
+FAR struct mtd_dev_s *sf32lb_flash_mtd_initialize(void) {
+  int ret;
+
+  ret - sf32lb_flash_hw_init();
+  if (ret < 0) {
+    return NULL;
+  }
+
+#if 0  
+  FAR struct sf32lb_flash_dev_s *priv;
+
+  priv = kmm_zalloc(sizeof(struct sf32lb_flash_dev_s));
+  if (priv == NULL) {
+    return NULL;
+  }
+
+  priv->handle = &g_spi_nor_flash_ctx.handle;
+  priv->page_size = QSPI_NOR_PAGE_SIZE;
+  priv->block_size = QSPI_NOR_BLK32_SIZE;
+  priv->total_size = priv->handle->size;
+  priv->nblocks = priv->total_size / priv->block_size;
+  priv->read_buf = priv->handle->data_buf;
+  priv->write_buf = kmm_zalloc(priv->page_size);
+
+  if (priv->write_buf == NULL) {
+      kmm_free(priv);
+      return -ENOMEM;
+  }
+
+  syslog(LOG_INFO,
+         "INFO: Nor MTD: page=%lu blk=%lu nblk=%lu total=%luMB\n",
+         (unsigned long)priv->page_size,
+         (unsigned long)priv->block_size,
+         (unsigned long)priv->nblocks,
+         (unsigned long)priv->total_size / (1024U * 1024U));
+#else
+  FAR struct sf32lb_nor_dev_s *priv;
+
+  priv = kmm_zalloc(sizeof(struct sf32lb_nor_dev_s));
+  if (priv == NULL) {
+    return NULL;
+  }
+
+  priv->spi_flash_handle = &g_spi_nor_flash_ctx.handle;
+  if (priv->spi_flash_handle == NULL) {
+      kmm_free(priv);
+      return NULL;
+  }
+
+  priv->offset = 0;
+  priv->limit_blocks = priv->spi_flash_handle->size / QSPI_NOR_SECT_SIZE;
+  priv->mem_base = priv->spi_flash_handle->base;
+  priv->nsectors = priv->spi_flash_handle->size / QSPI_NOR_PAGE_SIZE;
+
+  syslog(LOG_INFO,
+         "INFO: Nor MTD: page=%lu blk=%lu nblk=%lu total=%luMB\n",
+         (unsigned long)QSPI_NOR_PAGE_SIZE,
+         (unsigned long)QSPI_NOR_SECT_SIZE,
+         (unsigned long)priv->limit_blocks,
+         (unsigned long)priv->spi_flash_handle->size / (1024U * 1024U));
+#endif
+  priv->mtd.erase   = sf32lb_nor_erase;
+  priv->mtd.bread   = sf32lb_nor_bread;
+  priv->mtd.bwrite  = sf32lb_nor_bwrite;
+  priv->mtd.read    = sf32lb_nor_read;
+  priv->mtd.ioctl   = sf32lb_nor_ioctl;
+  priv->mtd.isbad   = sf32lb_nor_isbad;
+  priv->mtd.markbad = sf32lb_nor_markbad;
+  priv->mtd.name    = "nor";
+
+  return (FAR struct mtd_dev_s *)priv;
+}
+
+int sf32lb_flash_register_partitions(FAR const char *const *devnames,
+                                     FAR const uint32_t *part_offsets,
+                                     FAR const uint32_t *part_sizes,
+                                     int npartitions) {
+
+  FAR struct mtd_dev_s *whole;
+  FAR struct mtd_dev_s *part;
+  int ret;
+  int i;
+
+  whole = sf32lb_flash_mtd_initialize();
+
+  if (whole == NULL) {
+      syslog(LOG_ERR, "ERROR: Failed to initialize NOR flash\n");
+      return -ENODEV;
+  }
+
+  for (i = 0; i < npartitions; i++) {
+      if (devnames[i] == NULL) {
+          continue;
+      }
+
+      if (part_sizes[i] == 0) {
+          /* Single partition covering the whole device */
+
+          part = whole;
+      }
+      else {
+          /* Create a sub-MTD for this partition.
+           * part_offsets[] are absolute SBUS addresses — convert to
+           * block numbers relative to the start of the NAND device.
+           */
+
+          FAR struct sf32lb_nor_dev_s *wdev =
+              (FAR struct sf32lb_nor_dev_s *)whole;
+          uint32_t page_size = SF32LB_NOR_PAGE_SIZE;
+          off_t startblock =
+              (off_t)((part_offsets[i] - FLASH4_BASE_ADDR) / page_size);
+          size_t nblocks = (size_t)(part_sizes[i] / page_size);
+          if (part_sizes[i] % page_size > 0) {
+              nblocks += 1;
+          }
+
+          part = mtd_partition(whole, startblock, nblocks);
+          if (part == NULL) {
+              syslog(LOG_ERR,
+                     "ERROR: mtd_partition(%s, pg=%lu, n=%lu) failed\n",
+                     devnames[i],
+                     (unsigned long)startblock,
+                     (unsigned long)nblocks);
+              continue;
+          }
+      }
+
+      ret = register_mtddriver(devnames[i], part, 0755, part);
+      if (ret < 0) {
+          syslog(LOG_ERR,
+                 "ERROR: register_mtddriver(%s) failed: %d\n",
+                 devnames[i], ret);
+      }
+      else {
+          syslog(LOG_INFO,
+                 "INFO: NAND partition %s registered (offset=0x%08lx "
+                 "size=0x%08lx)\n",
+                 devnames[i],
+                 (unsigned long)part_offsets[i],
+                 (unsigned long)part_sizes[i]);
+      }
+  }
+
+  return OK;
+}  

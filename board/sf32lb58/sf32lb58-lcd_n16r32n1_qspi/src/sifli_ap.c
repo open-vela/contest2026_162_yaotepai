@@ -457,13 +457,13 @@ int sf32lb58_lcd_bringup(void)
 #endif
 
 #ifdef CONFIG_MTD
-  /* ret = sf32lb_nor_automount(0, */
-  /*                            SF32LB58_NOR_FS_OFFSET_BLOCKS, */
-  /*                            SF32LB58_NOR_FS_SIZE_BLOCKS); */
-  /* if (ret < 0) */
-  /*   { */
-  /*     serr("WARN: sf32lb_nor_automount failed: %d\n", ret); */
-  /*   } */
+  ret = sf32lb_nor_automount(0,
+                             SF32LB58_NOR_FS_OFFSET_BLOCKS,
+                             SF32LB58_NOR_FS_SIZE_BLOCKS);
+  if (ret < 0)
+    {
+      serr("WARN: sf32lb_nor_automount failed: %d\n", ret);
+    }
 #endif
 
 #ifdef CONFIG_CDCACM

@@ -84,7 +84,8 @@ file(GLOB HAL_SRCS ${VENDOR_DIR}/drivers/hal/*.c)
 if(CONFIG_UART_BTH4)
     list(APPEND SRCS sf32lb58_bt_adapter.c sf32lb58_bth4.c
       sf32lb58_lcpu_boot.c
-      lcpu.c
+      # lcpu.c
+      lcpu_a2.c
       # lcpu_img_58x_52.c
       # lcpu_img_58x_3sco.c
     )

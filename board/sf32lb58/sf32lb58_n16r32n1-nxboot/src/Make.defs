@@ -1,0 +1,9 @@
+############################################################################
+# board/sf32lb58/sf32lb58-nxboot/src/Make.defs
+#
+# Copyright (C) 2026 Yang Hongbo <yang.hongbo@iotpi.xyz>
+# SPDX-License-Identifier: Apache-2.0
+############################################################################
+
+# Board-level CFLAGS — adds board src to the build
+CFLAGS += -I$(BOARD_DIR)$(DELIM)src

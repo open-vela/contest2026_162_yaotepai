@@ -353,15 +353,6 @@ void HAL_MspInit(void)
 void HAL_PreInit(void)
 {
   BSP_Board_PreInit();
-
-#ifdef CONFIG_BSP_USING_PSRAM
-  /* BSP_Board_PreInit() already called HAL_MspInit() (pin mux + power)
-   * and configured DLL2 at 288 MHz with FLASH1/FLASH2 clock mux.
-   * Now initialize the PSRAM controller.
-   */
-
-  bsp_psramc_init();
-#endif
 }
 
 /****************************************************************************
