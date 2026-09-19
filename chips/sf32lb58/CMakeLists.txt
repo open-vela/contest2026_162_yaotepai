@@ -52,7 +52,7 @@ if(CONFIG_MTD)
 endif()
 
 if(CONFIG_BSP_USING_NAND_FLASH4)
-    list(APPEND SRCS sf32lb_nand.c)
+    list(APPEND SRCS sf32lb_nand.c flash_get_freq_stub.c)
 endif()
 
 if(CONFIG_TIMER)

@@ -187,6 +187,22 @@ int board_boot_image(const char *path, uint32_t hdr_size)
   syslog(LOG_INFO, "board_boot_image: VT sp=0x%08lx reset=0x%08lx\n",
          (unsigned long)vt.spr, (unsigned long)vt.reset);
 
+  /* Disable D-cache and MPU BEFORE copying to PSRAM.
+   * With D-cache enabled, memcpy writes go to the cache, not to PSRAM.
+   * GDB reads through the DAP bypass D-cache, so the old PSRAM content
+   * is visible — making it look like writes have no effect.
+   * Disabling D-cache here ensures writes go directly to the QSPI
+   * controller → PSRAM.
+   */
+
+#ifdef CONFIG_ARMV8M_DCACHE
+  up_disable_dcache();
+#endif
+
+#ifdef CONFIG_ARM_MPU
+  mpu_control(false, false, false);
+#endif
+
   /* Copy the entire image from NAND to PSRAM.
    * We read from the NAND partition starting at hdr_size (after header)
    * and write to PSRAM at the load address.
