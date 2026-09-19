@@ -134,6 +134,7 @@ void lcpu_disable_rf_cal(uint8_t is_disable)
   g_lcpu_rf_cal_disable = is_disable;
 }
 
+#if 0
 uint8_t lcpu_power_on(void)
 {
   syslog(LOG_INFO, "sf32lb58 lcpu_boot: start\n");
@@ -176,3 +177,4 @@ uint8_t lcpu_power_off(void)
   HAL_RCC_Reset_and_Halt_LCPU(0);
   return 0;
 }
+#endif

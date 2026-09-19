@@ -235,6 +235,7 @@ static void __start_c(void)
   /* Configure FPU before any floating point operations */
 
   arm_fpuconfig();
+  mpu_config();  
 
   /* Clear BSS section - critical for proper variable initialization */
 
@@ -271,11 +272,11 @@ static void __start_c(void)
   arm_lowputc('A'); /* data segment init done */
 
 #ifdef CONFIG_ARMV8M_ICACHE
-  up_enable_icache();
+  /* up_enable_icache(); */
 #endif
 
 #ifdef CONFIG_ARMV8M_DCACHE
-  up_enable_dcache();
+  /* up_enable_dcache(); */
 #endif
     arm_lowputc('B'); /* cache enable done */
 

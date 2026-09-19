@@ -90,7 +90,8 @@ if(CONFIG_UART_BTH4)
       # lcpu_img_58x_3sco.c
     )
     list(APPEND HAL_SRCS
-         ${VENDOR_DIR}/drivers/cmsis/sf32lb58x/lcpu_patch.c
+         ${VENDOR_DIR}/drivers/cmsis/sf32lb58x/lcpu_patch_a2.c
+         ${VENDOR_DIR}/drivers/cmsis/sf32lb58x/bf0_lcpu_init.c
          ${VENDOR_DIR}/drivers/cmsis/sf32lb58x/bt_rf_fulcal.c)
 endif()
 
@@ -108,9 +109,8 @@ target_sources(arch PRIVATE ${SRCS} ${HAL_SRCS} ${SYSTEM_SRCS} ${IPC_QUEUE_SRCS}
 
 target_compile_definitions(arch PRIVATE SOC_BF0_HCPU
                                         SF32LB58X
-                                        LCPU_CONFIG_V1
-                                        # LCPU_CONFIG_V2
-                                        LCPU_RUN_SEPERATE_IMG
+                                        # LCPU_CONFIG_V1
+                                        LCPU_CONFIG_V2
                                         HAL_TICK_PER_SECOND=1000
                                         USE_HAL_DRIVER
                                         USE_SERIALDRIVER

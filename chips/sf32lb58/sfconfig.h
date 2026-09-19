@@ -262,7 +262,6 @@
 #define BSP_QSPI4_USING_DMA CONFIG_BSP_QSPI4_USING_DMA
 #endif
 
-
 /* IRQ helper */
 
 #ifndef NX_IRQ
