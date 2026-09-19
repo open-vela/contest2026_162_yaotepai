@@ -1,0 +1,7 @@
+# Board Kconfig for sf32lb58-nxboot bootloader
+# This file is intentionally minimal — the bootloader config is
+# controlled by the defconfig file directly.
+
+config ARCH_BOARD_SF32LB58_NXBOOT
+	bool
+	default n

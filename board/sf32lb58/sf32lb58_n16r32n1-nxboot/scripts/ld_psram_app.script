@@ -1,77 +1,56 @@
 /****************************************************************************
- * board/sf32lb58-lcd_a128r32n1_qspi/scripts/ld.script
+ * board/sf32lb58-nxboot/scripts/ld_psram_app.script
  *
- * Copyright (C) 2026 Yang Hongbo <yang.hongbo@iotpi.xyz>
- * SPDX-License-Identifier: Apache-2.0
+ * Linker script for the APPLICATION firmware that runs from PSRAM.
+ * Used when the application is loaded by nxboot from NAND to PSRAM.
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may
- * not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Key differences from the flash linker script:
+ *   - .vectors and .text go to psram (0x60400000) instead of rom (0x10000000)
+ *   - .data and .ramfunc LMA is in psram (startup copies PSRAM→SRAM)
+ *   - .retm_data stays in retention_ram (LMA in psram)
+ *   - .bss stays in sram (zeroed by startup)
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * Memory map:
+ *   psram (code): 0x60400000, 16 MB
+ *   sram (data):  0x20000000, 1536 KB
+ *   retention_ram: 0x20000000 (first 64 KB, but actually 0x00020000 on SF32LB58)
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
- * License for the specific language governing permissions and limitations
- * under the License.
- *
+ * IMPORTANT: The nxboot bootloader writes a handoff flag (0x5053524d) to
+ * retention RAM at 0x20001FF0 before jumping to this image. The chip-level
+ * bsp_psramc_init() checks this flag and skips PSRAM re-initialization
+ * to avoid destroying the image that was just copied from NAND.
  ****************************************************************************/
-
-/* SF32LB58 a128r32n1 memory layout (migrated to openvela NuttX):
- *
- *   Flash (XIP):  QSPI2 NOR 1 MB at 0x12000000 (bootloader @ 0x12000000, app @ 0x12010000)
- *   SRAM:         RAM0-RAM5 = 1.5 MB (0x20000000 - 0x20180000)
- *   PSRAM:        MPI1 OPSRAM = 32 MB (0x60200000, after 2MB reserved)
- *
- * Migration notes (sf32lb52 SDK → openvela pattern):
- *   - Removed: .retm_data, .itcm_code/.itcm_data, .retm_bss/.itcm_bss,
- *              .RW_IRAM0, .rom_ex, .rom2/.rom3, .stack/.heap, ROM_EX/ROM2/ROM3
- *   - Added:   .ramfunc (flash driver), .ram_vectors, .tdata/.tbss,
- *              /DISCARD/ build-id, NuttX startup symbols
- *   - .ramfunc covers critical code that must run from SRAM (flash erase/write)
- */
 
 MEMORY
 {
-  rom (rx)  : ORIGIN = 0x10000000, LENGTH = 1M     /* 4MB occupied for code */
-  sram (rwx)  : ORIGIN = 0x20000000, LENGTH = 1536K    /* RAM0-RAM5: 128+128+256+512+512 KB */
+  sram (rwx)  : ORIGIN = 0x20000000, LENGTH = 1536K
   retention_ram (rw) : ORIGIN = 0x00020000, LENGTH = 64K
-  psram (rwx) : ORIGIN = 0x60400000, LENGTH = 16M      /* MPI1 qPSRAM, after 4MB reserved for code */
-  psram2 (rwx) : ORIGIN = 0x62000000, LENGTH = 16M      /* MPI2 qPSRAM */
+  psram (rwx) : ORIGIN = 0x60400000, LENGTH = 16M
 }
 
 OUTPUT_ARCH(arm)
 EXTERN(_vectors)
-/* Provide __Vectors alias for SystemInit() compatibility */
 __Vectors = _vectors;
 ENTRY(_stext)
 
 SECTIONS
 {
-    /* Discard build-id to ensure vectors start at flash base */
     /DISCARD/ : {
         *(.note.gnu.build-id)
     }
 
     .vectors : {
         _stext = ABSOLUTE(.);
-        /* Ensure vector table is properly aligned (must be at flash start) */
         . = ALIGN(512);
         KEEP(*(.vectors))
-        /* workaround to avoid load address of .retm_data doesn't skip .vectors region */
         . = . + 4;
-    } > rom
+    } > psram
 
     .retm_data : {
         . = ALIGN(4);
         __rw_retm_data_start__ = .;
         *(.*l1_ret_text_*)
         *(.*l1_ret_rodata_*)
-
-        /* HAL/driver objects needed during wake-from-sleep.
-         * BSP board objects (bsp_init, bsp_lcd_tp, bsp_pinmux, bsp_power)
-         * are NOT here — they stay in .text (boot only, not sleep-critical). */
         *flash_table.c.o    (.text* .rodata*)
         *bf0_hal_mpi.c.o    (.text* .rodata*)
         *bf0_hal_mpi_ex.c.o (.text* .rodata*)
@@ -86,10 +65,6 @@ SECTIONS
         *bf0_pm.c.o         (.text.sifli_standby_handler)
         *bf0_pm.c.o         (.text.SystemInitFromStandby)
         *.c.o                 (.text.SystemPowerOnModeGet)
-        /* *bsp_init.c.o       (.text* .rodata*) */
-        /* *bsp_lcd_tp.c.o     (.text* .rodata*) */
-        /* *bsp_pinmux.c.o     (.text* .rodata*) */
-        /* *bsp_power.c.o      (.text* .rodata*) */
         *bf0_hal_gpio.c.o   (.text* .rodata*)
         *bf0_hal_hpaon.c.o  (.text* .rodata*)
         *bf0_hal.c.o        (.text.HAL_Init)
@@ -101,29 +76,23 @@ SECTIONS
         *drv_common.c.o     (.text.rt_hw_us_delay)
         *.c.o                 (.text.rt_memset)
         *.c.o                 (.text.memset)
-
         *(.retm_data_*)
-
         . = ALIGN(4);
         __rw_retm_data_end__ = .;
-    } > retention_ram AT > rom
+    } > retention_ram AT > psram
 
     .retm_bss : {
         . = ALIGN(4);
         __rw_retm_bss_start__ = .;
         __RW_IRAM_RET$$ZI_start__ = .;
         *(.bss.retm_bss_*)
-
         *idle.c.o(.bss.idle_thread_stack)
         *.o(.bss.bf0_psram_handle)
-
         . = ALIGN(4);
         __RW_IRAM_RET$$ZI_end__ = .;
     } > retention_ram
 
     .text : {
-        _stext = ABSOLUTE(.);
-        /* Ensure vector table is properly aligned (must be at flash start) */
         . = ALIGN(512);
         KEEP(*(.vectors))
         . = ALIGN(4);
@@ -137,11 +106,9 @@ SECTIONS
         *(.got)
         *(.gcc_except_table)
         *(.gnu.linkonce.r.*)
-
         KEEP(*(.init))
         KEEP(*(.fini))
 
-        /* Section information for finsh shell */
         . = ALIGN(4);
         __fsymtab_start = .;
         KEEP(*(FSymTab))
@@ -157,7 +124,6 @@ SECTIONS
         KEEP(*(UtestTcTab))
         __rt_utest_tc_tab_end = .;
 
-        /* Section information for initial */
         . = ALIGN(4);
         __rt_init_start = .;
         KEEP(*(SORT(.rti_fn*)))
@@ -173,13 +139,11 @@ SECTIONS
         KEEP(*(SORT(.bt_sifli_reg*)))
         __bt_sifli_reg_end__ = .;
 
-        /* Section information for modules */
         . = ALIGN(4);
         __rtmsymtab_start = .;
         KEEP(*(RTMSymTab))
         __rtmsymtab_end = .;
 
-        /* Section information for LCD drivers */
         . = ALIGN(4);
         LcdDriverDescTab_start = .;
         KEEP(*(LcdDriverDescTab))
@@ -197,16 +161,16 @@ SECTIONS
 
         KEEP(*(.eh_frame*))
         _etext = ABSOLUTE(.);
-    } > rom
+    } > psram
 
     .ARM.extab : {
         *(.ARM.extab* .gnu.linkonce.armextab.*)
-    } > rom
+    } > psram
 
     __exidx_start = ABSOLUTE(.);
     .ARM.exidx : {
         *(.ARM.exidx* .gnu.linkonce.armexidx.*)
-    } > rom
+    } > psram
     __exidx_end = ABSOLUTE(.);
 
     /* CMSIS __copy_table_t: {src, dest, wlen} — wlen is word count (SIZEOF/4) */
@@ -219,8 +183,11 @@ SECTIONS
         LONG (LOADADDR(.retm_data))
         LONG (ADDR(.retm_data))
         LONG (SIZEOF(.retm_data) / 4)
+        LONG (LOADADDR(.ramfunc))
+        LONG (ADDR(.ramfunc))
+        LONG (SIZEOF(.ramfunc) / 4)
         __copy_table_end__ = .;
-    } > rom
+    } > psram
 
     /* CMSIS __zero_table_t: {dest, wlen} — wlen is word count (SIZEOF/4) */
     .zero.table : {
@@ -231,19 +198,19 @@ SECTIONS
         LONG (ADDR(.retm_bss))
         LONG (SIZEOF(.retm_bss) / 4)
         __zero_table_end__ = .;
-    } > rom
+    } > psram
 
     .tdata : {
         _stdata = ABSOLUTE(.);
         *(.tdata .tdata.* .gnu.linkonce.td.*);
         _etdata = ABSOLUTE(.);
-    } > rom
+    } > psram
 
     .tbss : {
         _stbss = ABSOLUTE(.);
         *(.tbss .tbss.* .gnu.linkonce.tb.* .tcommon);
         _etbss = ABSOLUTE(.);
-    } > rom
+    } > psram
 
     _eronly = ABSOLUTE(.);
     __etext = ALIGN(4);
@@ -263,13 +230,11 @@ SECTIONS
         CONSTRUCTORS
 
         . = ALIGN(4);
-        /* preinit data */
         PROVIDE_HIDDEN (__preinit_array_start = .);
         KEEP(*(.preinit_array))
         PROVIDE_HIDDEN (__preinit_array_end = .);
 
         . = ALIGN(4);
-        /* init data */
         _sinit = ABSOLUTE(.);
         PROVIDE(__ctors_start__ = .);
         PROVIDE_HIDDEN (__init_array_start = .);
@@ -282,7 +247,6 @@ SECTIONS
         PROVIDE(__ctors_end__ = .);
 
         . = ALIGN(4);
-        /* fini data */
         PROVIDE(__dtors_start__ = .);
         PROVIDE_HIDDEN (__fini_array_start = .);
         KEEP(*(SORT(.dtors.*)))
@@ -296,7 +260,7 @@ SECTIONS
         . = ALIGN(4);
         __data_end__ = .;
         _edata = ABSOLUTE(.);
-    } > sram AT > rom
+    } > sram AT > psram
 
     .ramfunc : {
         . = ALIGN(4);
@@ -304,7 +268,7 @@ SECTIONS
         *(.ramfunc .ramfunc.*)
         . = ALIGN(4);
         _eramfunc = ABSOLUTE(.);
-    } > sram AT > rom
+    } > sram AT > psram
 
     _siramfunc = LOADADDR(.ramfunc);
 
@@ -326,7 +290,6 @@ SECTIONS
     PROVIDE(end = .);
     PROVIDE(_end = .);
 
-    /* PSRAM sections for cache-aligned data */
     .RW_PSRAM1 : {
         . = ALIGN(4);
         __rw_psram1_start__ = .;
@@ -339,7 +302,7 @@ SECTIONS
     } > psram
 
     .RW_PSRAM_NON_RET : {
-        . = ALIGN(32);  /* Cache-line aligned */
+        . = ALIGN(32);
         __RW_PSRAM_NON_RET_start__ = .;
         *(.nand_cache)
         *(.*l2_cache_non_ret_data_*)
@@ -348,7 +311,6 @@ SECTIONS
         __RW_PSRAM_NON_RET_end__ = .;
     } > psram
 
-    /* Stabs debugging sections. */
     .stab 0 : { *(.stab) }
     .stabstr 0 : { *(.stabstr) }
     .stab.excl 0 : { *(.stab.excl) }
