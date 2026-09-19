@@ -83,27 +83,27 @@ endif
 
 # SiFli HAL library (required by chip drivers)
 # Symlinked from ../drivers/hal/ into chip directory
-CHIP_CSRCS += bf0_hal.c bf0_hal_dma.c bf0_hal_gpio.c bf0_hal_rcc.c
-CHIP_CSRCS += bf0_hal_uart.c bf0_hal_cortex.c bf0_hal_qspi.c
-CHIP_CSRCS += bf0_hal_mpi.c bf0_hal_mpi_ex.c bf0_hal_ext_dma.c
-CHIP_CSRCS += bf0_hal_pmu.c bf0_hal_hpaon.c bf0_hal_lpaon.c
-CHIP_CSRCS += bf0_hal_pinmux.c bf0_hal_hlp.c bf0_sys_cfg.c
-CHIP_CSRCS += flash_table.c nand_table.c
-CHIP_CSRCS += bf0_hal_adc.c bf0_hal_aes.c bf0_hal_audcodec.c
-CHIP_CSRCS += bf0_hal_audprc.c bf0_hal_bleaon.c bf0_hal_busmon.c
-CHIP_CSRCS += bf0_hal_crc.c bf0_hal_dsi.c bf0_hal_efuse.c
-CHIP_CSRCS += bf0_hal_epic.c bf0_hal_ezip.c bf0_hal_facc.c
-CHIP_CSRCS += bf0_hal_fft.c bf0_hal_hcd.c bf0_hal_i2c.c
-CHIP_CSRCS += bf0_hal_i2s.c bf0_hal_lcdc.c bf0_hal_lcpu_config.c
-CHIP_CSRCS += bf0_hal_lpcomp.c bf0_hal_lptim.c bf0_hal_lrc_cal.c
-CHIP_CSRCS += bf0_hal_mailbox.c bf0_hal_mpi_psram.c bf0_hal_nn_acc.c
-CHIP_CSRCS += bf0_hal_patch.c bf0_hal_pcd.c bf0_hal_pdm.c
-CHIP_CSRCS += bf0_hal_psram.c bf0_hal_ptc.c bf0_hal_qspi_ex.c
-CHIP_CSRCS += bf0_hal_rng.c bf0_hal_rtc.c bf0_hal_sdadc.c
-CHIP_CSRCS += bf0_hal_sd_ex.c bf0_hal_sdhci.c bf0_hal_sdmmc.c
-CHIP_CSRCS += bf0_hal_secu.c bf0_hal_spi.c bf0_hal_tim.c
-CHIP_CSRCS += bf0_hal_tim_ex.c bf0_hal_tsen.c bf0_hal_wdt.c
-CHIP_CSRCS += sifli_bbm.c
+CHIP_CSRCS += ../drivers/hal/bf0_hal.c ../drivers/hal/bf0_hal_dma.c ../drivers/hal/bf0_hal_gpio.c ../drivers/hal/bf0_hal_rcc.c
+CHIP_CSRCS += ../drivers/hal/bf0_hal_uart.c ../drivers/hal/bf0_hal_cortex.c ../drivers/hal/bf0_hal_qspi.c
+CHIP_CSRCS += ../drivers/hal/bf0_hal_mpi.c ../drivers/hal/bf0_hal_mpi_ex.c ../drivers/hal/bf0_hal_ext_dma.c
+CHIP_CSRCS += ../drivers/hal/bf0_hal_pmu.c ../drivers/hal/bf0_hal_hpaon.c ../drivers/hal/bf0_hal_lpaon.c
+CHIP_CSRCS += ../drivers/hal/bf0_hal_pinmux.c ../drivers/hal/bf0_hal_hlp.c ../drivers/hal/bf0_sys_cfg.c
+CHIP_CSRCS += ../drivers/hal/flash_table.c ../drivers/hal/nand_table.c
+CHIP_CSRCS += ../drivers/hal/bf0_hal_adc.c ../drivers/hal/bf0_hal_aes.c ../drivers/hal/bf0_hal_audcodec.c
+CHIP_CSRCS += ../drivers/hal/bf0_hal_audprc.c ../drivers/hal/bf0_hal_bleaon.c ../drivers/hal/bf0_hal_busmon.c
+CHIP_CSRCS += ../drivers/hal/bf0_hal_crc.c ../drivers/hal/bf0_hal_dsi.c ../drivers/hal/bf0_hal_efuse.c
+CHIP_CSRCS += ../drivers/hal/bf0_hal_epic.c ../drivers/hal/bf0_hal_ezip.c ../drivers/hal/bf0_hal_facc.c
+CHIP_CSRCS += ../drivers/hal/bf0_hal_fft.c ../drivers/hal/bf0_hal_hcd.c ../drivers/hal/bf0_hal_i2c.c
+CHIP_CSRCS += ../drivers/hal/bf0_hal_i2s.c ../drivers/hal/bf0_hal_lcdc.c ../drivers/hal/bf0_hal_lcpu_config.c
+CHIP_CSRCS += ../drivers/hal/bf0_hal_lpcomp.c ../drivers/hal/bf0_hal_lptim.c ../drivers/hal/bf0_hal_lrc_cal.c
+CHIP_CSRCS += ../drivers/hal/bf0_hal_mailbox.c ../drivers/hal/bf0_hal_mpi_psram.c ../drivers/hal/bf0_hal_nn_acc.c
+CHIP_CSRCS += ../drivers/hal/bf0_hal_patch.c ../drivers/hal/bf0_hal_pcd.c ../drivers/hal/bf0_hal_pdm.c
+CHIP_CSRCS += ../drivers/hal/bf0_hal_psram.c ../drivers/hal/bf0_hal_ptc.c ../drivers/hal/bf0_hal_qspi_ex.c
+CHIP_CSRCS += ../drivers/hal/bf0_hal_rng.c ../drivers/hal/bf0_hal_rtc.c ../drivers/hal/bf0_hal_sdadc.c
+CHIP_CSRCS += ../drivers/hal/bf0_hal_sd_ex.c ../drivers/hal/bf0_hal_sdhci.c ../drivers/hal/bf0_hal_sdmmc.c
+CHIP_CSRCS += ../drivers/hal/bf0_hal_secu.c ../drivers/hal/bf0_hal_spi.c ../drivers/hal/bf0_hal_tim.c
+CHIP_CSRCS += ../drivers/hal/bf0_hal_tim_ex.c ../drivers/hal/bf0_hal_tsen.c bf0_hal_wdt.c
+CHIP_CSRCS += ../drivers/hal/sifli_bbm.c
 
 # CMSIS system file (provides SystemPowerOnModeGet etc.)
 CHIP_CSRCS += system_bf0_ap.c
