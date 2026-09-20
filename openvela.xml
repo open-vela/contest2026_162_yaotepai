@@ -5,7 +5,7 @@
   <default remote="openvela" revision="dev-ai-contest-2026"/>
 
   <remote name="yaotepai"
-          fetch="https://github.com/sprhawk/zblue-port-openvela.git"
+          fetch="https://github.com/sprhawk"
           alias="yaotepai"
           revision="yaotepai" />
 
@@ -150,7 +150,7 @@
   <project path="external/vector-sil/sil-kit-adapters-qemu" name="external_vector-sil_sil-kit-adapters-qemu"/>
   <project path="external/vector-sil/sil-kit-adapters-vcan" name="external_vector-sil_sil-kit-adapters-vcan"/>
   <project path="external/yoga/yoga" name="external_yoga"/>
-  <project path="external/zblue/zblue" name="external_zblue" remote="yaotepai"/>
+  <project path="external/zblue/zblue" name="zblue-port-openvela" remote="yaotepai"/>
   <project path="external/zint/zint" name="external_zint"/>
   <project path="frameworks" name="frameworks"/>
   <project path="frameworks/connectivity" name="frameworks_connectivity"/>
