@@ -1,0 +1,6 @@
+device SF32LB58X_NAND
+si SWD
+speed 2000
+r
+loadbin nxboot.bin 0x1C020000
+exit
