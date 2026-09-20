@@ -762,13 +762,15 @@ int sf32lb58_bt_controller_enable(void)
   sf32lb58_bt_prepare_stack_nvds();
   HAL_LCPU_ASSERT_INFO_clear();
 
-  /* Wake the LCPU first so the LPSYS bus bridge is powered.
-   * This must happen BEFORE lcpu_power_on() because the IPC mailbox
-   * CxIER register is on the LPSYS APB bus and only writable when
-   * the bus bridge is active.  lcpu_power_on() will reset+halt the
-   * LCPU and reconfigure it, so this early wake is just for the bus
-   * bridge power domain.
-   */
+  syslog(LOG_INFO, "sf32lb58 bt: powering on LCPU\n");
+  ret = lcpu_power_on();
+  if (ret != 0)
+    {
+      syslog(LOG_ERR, "sf32lb58 bt: lcpu_power_on failed: %d\n", ret);
+      return -EIO;
+    }
+
+  syslog(LOG_INFO, "sf32lb58 bt: LCPU powered on, waiting for init\n");
 
   HAL_HPAON_WakeCore(CORE_ID_LCPU);
   g_sf32lb58_bt_env.wake_held = true;
@@ -788,26 +790,11 @@ int sf32lb58_bt_controller_enable(void)
       return ret;
     }
 
-  g_sf32lb58_bt_env.queue_open = true;
-
-  syslog(LOG_INFO, "sf32lb58 bt: powering on LCPU\n");
-  ret = lcpu_power_on();
-  if (ret != 0)
-    {
-      syslog(LOG_ERR, "sf32lb58 bt: lcpu_power_on failed: %d\n", ret);
-      return -EIO;
-    }
-
-  syslog(LOG_INFO, "sf32lb58 bt: LCPU powered on, waiting for init\n");
-
   /* Wait for LCPU to initialize, matching SiFli SDK behavior (1s) */
-  {
-    volatile uint32_t i;
-    for (i = 0; i < 8499000 * 1; i++)
-      ;
-  }
+  up_mdelay(1000);
 
-  /* Log TX ring metadata for diagnostics */
+#if 0  
+  /* Log TX ring metadata for diagnostics */  
   {
     struct circular_buf *tx_dbg =
         (struct circular_buf *)SF32LB58_BT_TX_BUF_ADDR;
@@ -822,13 +809,36 @@ int sf32lb58_bt_controller_enable(void)
            (unsigned long)tx_dbg->write_idx_mirror,
            tx_dbg->rd_buffer_ptr, tx_dbg->wr_buffer_ptr);
   }
-
+#endif
+  /* Flush H2L TX ring to SRAM immediately after ipc_queue_open so
+   * LCPU sees the reset indices (read_idx=write_idx=0) before it
+   * tries to process any stale data from a previous session.
+   */
   syslog(LOG_INFO, "sf32lb58 bt: flushing TX ring, then waiting RX ring\n");
   up_clean_dcache((uintptr_t)SF32LB58_BT_TX_BUF_ADDR,
                   (uintptr_t)SF32LB58_BT_TX_BUF_ADDR +
-                  SF32LB58_BT_TX_BUF_SIZE);
+                  SF32LB58_BTq_TX_BUF_SIZE);
   __DSB();
 
+  /* After every lcpu_power_on(), LCPU resets its TX ring write pointer
+   * (write_idx_mirror) to 0 and writes its own boot responses into the
+   * ring.  HCPU's read pointer (read_idx_mirror) may still hold the
+   * non-zero value from the previous session -- dirty in DCache or
+   * stored in SRAM.  If we do not synchronise them:
+   *
+   *   circular_buf_data_len() = wrap(write_idx - read_idx)
+   *
+   * returns a large garbage value, and LCPU's fresh boot events
+   * plus ring garbage all replay as "new" HCI responses.  These
+   * ghost events are consumed by the host as replies to real commands,
+   * so HCI_Reset (0x0c01) is never actually executed by the controller,
+   * and bt_le_adv_start later gets "Command Disallowed" (0x07).
+   *
+   * Fix: flush DCache to write back any dirty read_idx and to load
+   * LCPU's current write_idx from SRAM, then advance read_idx to
+   * write_idx (discard ALL pending LCPU boot data), then clean the
+   * DCache so LCPU sees the updated read pointer in SRAM.
+   */
   {
     struct circular_buf *rx_ring =
         (struct circular_buf *)SF32LB58_BT_RX_BUF_ADDR;
@@ -885,6 +895,18 @@ int sf32lb58_bt_controller_enable(void)
                     sizeof(*rx_ring));
     __DSB();
   }
+
+  {
+    volatile MAILBOX_CH_TypeDef *l2h = L2H_MAILBOX;
+    uint32_t nvic_bit = (1UL << (LCPU2HCPU_IRQn & 0x1F));
+    uint32_t nvic_en  = NVIC->ISER[LCPU2HCPU_IRQn >> 5];
+
+    (void)l2h;
+    (void)nvic_bit;
+    (void)nvic_en;
+  }
+
+  g_sf32lb58_bt_env.queue_open = true;
 
   g_sf32lb58_bt_status = SF32LB58_BT_STATUS_ENABLED;
 
